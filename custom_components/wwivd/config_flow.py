@@ -237,61 +237,32 @@ def _options_schema(data: dict[str, Any] | None) -> vol.Schema:
     """Build options form schema from current data. Coerce None to safe defaults."""
     if data is None:
         data = {}
+    # Extract values with type safety
+    host = str(data.get(CONF_HOST, "") or "")
+    port = int(data.get(CONF_PORT, DEFAULT_PORT) or DEFAULT_PORT)
+    refresh = int(data.get(CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL) or DEFAULT_REFRESH_INTERVAL)
+    enable_instances = bool(data.get(CONF_ENABLE_INSTANCES, True))
+    enable_blocking = bool(data.get(CONF_ENABLE_BLOCKING, True))
+    enable_sysop = bool(data.get(CONF_ENABLE_SYSOP, True))
+    enable_laston = bool(data.get(CONF_ENABLE_LASTON, True))
+    modem_enabled = bool(data.get(CONF_MODEM_ENABLED, False))
+    modem_host = str(data.get(CONF_MODEM_HOST, "") or "")
+    modem_port = int(data.get(CONF_MODEM_PORT, DEFAULT_MODEM_PORT) or DEFAULT_MODEM_PORT)
+    modem_refresh = int(data.get(CONF_MODEM_REFRESH_INTERVAL, DEFAULT_MODEM_REFRESH_INTERVAL) or DEFAULT_MODEM_REFRESH_INTERVAL)
+    
     return vol.Schema(
         {
-            vol.Required(CONF_HOST, default=(data.get(CONF_HOST) or "")): str,
-            vol.Required(
-                CONF_PORT,
-                default=DEFAULT_PORT if data.get(CONF_PORT) is None else data.get(CONF_PORT),
-            ): int,
-            vol.Required(
-                CONF_REFRESH_INTERVAL,
-                default=(
-                    DEFAULT_REFRESH_INTERVAL
-                    if data.get(CONF_REFRESH_INTERVAL) is None
-                    else data.get(CONF_REFRESH_INTERVAL)
-                ),
-            ): int,
-            vol.Required(
-                CONF_ENABLE_INSTANCES,
-                default=data.get(CONF_ENABLE_INSTANCES, True) is not False,
-            ): bool,
-            vol.Required(
-                CONF_ENABLE_BLOCKING,
-                default=data.get(CONF_ENABLE_BLOCKING, True) is not False,
-            ): bool,
-            vol.Required(
-                CONF_ENABLE_SYSOP,
-                default=data.get(CONF_ENABLE_SYSOP, True) is not False,
-            ): bool,
-            vol.Required(
-                CONF_ENABLE_LASTON,
-                default=data.get(CONF_ENABLE_LASTON, True) is not False,
-            ): bool,
-            vol.Required(
-                CONF_MODEM_ENABLED,
-                default=data.get(CONF_MODEM_ENABLED, False) is True,
-            ): bool,
-            vol.Optional(
-                CONF_MODEM_HOST,
-                default=(data.get(CONF_MODEM_HOST) or ""),
-            ): str,
-            vol.Optional(
-                CONF_MODEM_PORT,
-                default=(
-                    DEFAULT_MODEM_PORT
-                    if data.get(CONF_MODEM_PORT) is None
-                    else data.get(CONF_MODEM_PORT)
-                ),
-            ): int,
-            vol.Optional(
-                CONF_MODEM_REFRESH_INTERVAL,
-                default=(
-                    DEFAULT_MODEM_REFRESH_INTERVAL
-                    if data.get(CONF_MODEM_REFRESH_INTERVAL) is None
-                    else data.get(CONF_MODEM_REFRESH_INTERVAL)
-                ),
-            ): int,
+            vol.Required(CONF_HOST, default=host): str,
+            vol.Required(CONF_PORT, default=port): int,
+            vol.Required(CONF_REFRESH_INTERVAL, default=refresh): int,
+            vol.Required(CONF_ENABLE_INSTANCES, default=enable_instances): bool,
+            vol.Required(CONF_ENABLE_BLOCKING, default=enable_blocking): bool,
+            vol.Required(CONF_ENABLE_SYSOP, default=enable_sysop): bool,
+            vol.Required(CONF_ENABLE_LASTON, default=enable_laston): bool,
+            vol.Required(CONF_MODEM_ENABLED, default=modem_enabled): bool,
+            vol.Optional(CONF_MODEM_HOST, default=modem_host): str,
+            vol.Optional(CONF_MODEM_PORT, default=modem_port): int,
+            vol.Optional(CONF_MODEM_REFRESH_INTERVAL, default=modem_refresh): int,
         }
     )
 
