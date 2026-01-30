@@ -127,10 +127,17 @@ def _get_int_from_payload(payload: Any, *keys: str) -> int | None:
 
 
 def _get_list(data: dict[str, Any], *keys: str) -> list[Any]:
-    """Return first key that exists and is a list, else []."""
+    """Return first key that exists and is a list, else []. Checks nested dicts (data, status, result)."""
+    if not isinstance(data, dict):
+        return []
     for key in keys:
         if key in data and isinstance(data[key], list):
             return data[key]
+    for nest in ("data", "status", "result"):
+        if nest in data and isinstance(data[nest], dict):
+            for key in keys:
+                if key in data[nest] and isinstance(data[nest][key], list):
+                    return data[nest][key]
     return []
 
 
@@ -226,8 +233,14 @@ class WWIVDCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if raw is not None:
                     lst = _get_list(raw, "laston", "users", "items", "data")
                     result[SENSOR_LASTON] = lst
-                    count = _get_int_from_payload(raw, "count")
-                    result[SENSOR_LASTON_COUNT] = count if count is not None else (len(lst) if lst else 0)
+                    count = _get_int_from_payload(
+                        raw, "count", "total", "total_count", "laston_count", "n"
+                    )
+                    if count is None and isinstance(raw, list):
+                        count = len(raw)
+                    result[SENSOR_LASTON_COUNT] = (
+                        count if count is not None else (len(lst) if lst else 0)
+                    )
                 else:
                     result[SENSOR_LASTON_COUNT] = None
                     result[SENSOR_LASTON] = []
