@@ -297,19 +297,33 @@ def _options_schema(data: dict[str, Any] | None) -> vol.Schema:
 
 
 def _safe_options_data(config_entry: config_entries.ConfigEntry) -> dict[str, Any]:
-    """Build a plain dict from config entry data; never raise."""
+    """Build a plain dict from config entry data and options; never raise."""
+    result: dict[str, Any] = {}
     try:
-        raw = getattr(config_entry, "data", None)
-        if not isinstance(raw, dict):
+        # Merge data and options (options override data for same keys)
+        data = getattr(config_entry, "data", None)
+        options = getattr(config_entry, "options", None)
+        raw = {}
+        if isinstance(data, dict):
+            raw.update(data)
+        if isinstance(options, dict):
+            raw.update(options)
+        if not raw:
+            _LOGGER.debug("Config entry has no data or options")
             return {}
-        return {k: v for k, v in raw.items() if k in (
+        # Filter to known config keys
+        known_keys = (
             CONF_HOST, CONF_PORT, CONF_REFRESH_INTERVAL,
             CONF_ENABLE_INSTANCES, CONF_ENABLE_BLOCKING,
             CONF_ENABLE_SYSOP, CONF_ENABLE_LASTON,
             CONF_MODEM_ENABLED, CONF_MODEM_HOST, CONF_MODEM_PORT,
             CONF_MODEM_REFRESH_INTERVAL,
-        )}
-    except Exception:  # pylint: disable=broad-except
+        )
+        result = {k: v for k, v in raw.items() if k in known_keys}
+        _LOGGER.debug("Loaded options data: %s (from keys: %s)", result, list(raw.keys()))
+        return result
+    except Exception as err:  # pylint: disable=broad-except
+        _LOGGER.exception("Failed to load options data: %s", err)
         return {}
 
 
@@ -335,11 +349,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Manage options."""
         if user_input is None:
             try:
-                # Use current entry from config store so form shows saved values
-                entry = self.hass.config_entries.async_get_entry(
-                    self.config_entry.entry_id
-                )
-                current = _safe_options_data(entry) if entry else {}
+                # self.config_entry is provided by parent OptionsFlow
+                current = _safe_options_data(self.config_entry)
+                _LOGGER.debug("Options form data: %s", current)
                 return self._options_form(current)
             except Exception as err:  # pylint: disable=broad-except
                 _LOGGER.exception("Options flow failed to show form: %s", err)
