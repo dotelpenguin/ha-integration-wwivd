@@ -298,39 +298,24 @@ def _options_schema(data: dict[str, Any] | None) -> vol.Schema:
 
 def _safe_options_data(config_entry: config_entries.ConfigEntry) -> dict[str, Any]:
     """Build a plain dict from config entry data and options; never raise."""
-    result: dict[str, Any] = {}
     try:
         # Merge data and options (options override data for same keys)
         data = getattr(config_entry, "data", None)
         options = getattr(config_entry, "options", None)
-        _LOGGER.debug(
-            "Loading options: data=%s (type=%s), options=%s (type=%s)",
-            data is not None,
-            type(data).__name__ if data is not None else None,
-            options is not None,
-            type(options).__name__ if options is not None else None,
-        )
         raw = {}
         if isinstance(data, dict):
             raw.update(data)
-            _LOGGER.debug("Data keys: %s", list(data.keys()))
         if isinstance(options, dict):
             raw.update(options)
-            _LOGGER.debug("Options keys: %s", list(options.keys()))
-        if not raw:
-            _LOGGER.warning("Config entry has no data or options - entry_id=%s", getattr(config_entry, "entry_id", "unknown"))
-            return {}
-        # Filter to known config keys
-        known_keys = (
-            CONF_HOST, CONF_PORT, CONF_REFRESH_INTERVAL,
-            CONF_ENABLE_INSTANCES, CONF_ENABLE_BLOCKING,
-            CONF_ENABLE_SYSOP, CONF_ENABLE_LASTON,
-            CONF_MODEM_ENABLED, CONF_MODEM_HOST, CONF_MODEM_PORT,
-            CONF_MODEM_REFRESH_INTERVAL,
+        # Return all keys - don't filter, let schema handle defaults
+        _LOGGER.info(
+            "Loaded config entry data: %s (entry_id=%s, data_keys=%s, options_keys=%s)",
+            raw,
+            getattr(config_entry, "entry_id", "unknown"),
+            list(data.keys()) if isinstance(data, dict) else [],
+            list(options.keys()) if isinstance(options, dict) else [],
         )
-        result = {k: v for k, v in raw.items() if k in known_keys}
-        _LOGGER.info("Loaded options data: %s (from raw keys: %s)", result, list(raw.keys()))
-        return result
+        return dict(raw)  # Return copy of all data
     except Exception as err:  # pylint: disable=broad-except
         _LOGGER.exception("Failed to load options data: %s", err)
         return {}
@@ -361,10 +346,16 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Show options form with optional error. data = current values for defaults."""
         if data is None:
             data = self._data
+        _LOGGER.info("Building options form with data: %s", data)
         errors = {"base": error} if error else {}
+        schema = _options_schema(data)
+        _LOGGER.debug("Schema defaults: host=%s, port=%s, refresh=%s", 
+                      schema.schema.get(CONF_HOST).default if CONF_HOST in schema.schema else "N/A",
+                      schema.schema.get(CONF_PORT).default if CONF_PORT in schema.schema else "N/A",
+                      schema.schema.get(CONF_REFRESH_INTERVAL).default if CONF_REFRESH_INTERVAL in schema.schema else "N/A")
         return self.async_show_form(
             step_id="init",
-            data_schema=_options_schema(data),
+            data_schema=schema,
             errors=errors,
         )
 
@@ -374,8 +365,15 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Manage options."""
         if user_input is None:
             try:
-                # Use cached _data property (loads from self.config_entry)
-                return self._options_form()
+                # Get fresh entry from config store to ensure we have latest saved data
+                entry = self.hass.config_entries.async_get_entry(self.config_entry.entry_id)
+                if entry:
+                    current_data = _safe_options_data(entry)
+                    _LOGGER.info("Opening options form with entry data: %s", current_data)
+                    return self._options_form(current_data)
+                else:
+                    _LOGGER.warning("Entry %s not found in config store", self.config_entry.entry_id)
+                    return self._options_form(self._data)
             except Exception as err:  # pylint: disable=broad-except
                 _LOGGER.exception("Options flow failed to show form: %s", err)
                 return self.async_abort(reason="options_load_failed")
