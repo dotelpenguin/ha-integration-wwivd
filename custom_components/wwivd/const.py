@@ -43,5 +43,12 @@ SENSOR_LASTON = "laston"
 # Modem Manager sensor key
 SENSOR_MODEM_STATUS = "modem_status"
 
+# Keys for raw JSON payloads in coordinator data (per endpoint)
+DATA_INSTANCES = "instances_data"
+DATA_BLOCKING = "blocking_data"
+DATA_SYSOP = "sysop_data"
+DATA_LASTON = "laston_data"
+
 # Attribute names for sensors
 ATTR_LAST_UPDATED = "last_updated"
+ATTR_JSON_PAYLOAD = "data"  # raw endpoint JSON in sensor attributes

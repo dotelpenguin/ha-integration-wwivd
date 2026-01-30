@@ -14,7 +14,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
-    UpdateFailed,
 )
 
 from .const import (
@@ -48,8 +47,24 @@ from .const import (
     SENSOR_LASTON_COUNT,
     SENSOR_LASTON,
     SENSOR_MODEM_STATUS,
+    DATA_INSTANCES,
+    DATA_BLOCKING,
+    DATA_SYSOP,
+    DATA_LASTON,
     ATTR_LAST_UPDATED,
+    ATTR_JSON_PAYLOAD,
 )
+
+# Map sensor_key -> coordinator data key for raw JSON payload
+SENSOR_TO_PAYLOAD_KEY: dict[str, str] = {
+    SENSOR_USED_INSTANCES: DATA_INSTANCES,
+    SENSOR_AUTO_BLOCKED_COUNT: DATA_BLOCKING,
+    SENSOR_CALLS_TODAY: DATA_SYSOP,
+    SENSOR_EMAIL_TODAY: DATA_SYSOP,
+    SENSOR_FEEDBACK_TODAY: DATA_SYSOP,
+    SENSOR_FEEDBACK_WAITING: DATA_SYSOP,
+    SENSOR_LASTON_COUNT: DATA_LASTON,
+}
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -121,6 +136,7 @@ class WWIVDCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         async with aiohttp.ClientSession() as session:
             if self._enable_instances:
                 raw = await _fetch_json(session, f"{base}{ENDPOINT_INSTANCES}")
+                result[DATA_INSTANCES] = raw
                 if raw is not None:
                     result[SENSOR_USED_INSTANCES] = _get_int(
                         raw, "used_instances", "used", "instances"
@@ -130,6 +146,7 @@ class WWIVDCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             if self._enable_blocking:
                 raw = await _fetch_json(session, f"{base}{ENDPOINT_BLOCKING}")
+                result[DATA_BLOCKING] = raw
                 if raw is not None:
                     result[SENSOR_AUTO_BLOCKED_COUNT] = _get_int(
                         raw, "auto_blocked_count", "auto_blocked", "blocked_count"
@@ -139,6 +156,7 @@ class WWIVDCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             if self._enable_sysop:
                 raw = await _fetch_json(session, f"{base}{ENDPOINT_SYSOP}")
+                result[DATA_SYSOP] = raw
                 if raw is not None:
                     result[SENSOR_CALLS_TODAY] = _get_int(
                         raw, "calls_today", "calls"
@@ -163,6 +181,7 @@ class WWIVDCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             if self._enable_laston:
                 raw = await _fetch_json(session, f"{base}{ENDPOINT_LASTON}")
+                result[DATA_LASTON] = raw
                 if raw is not None:
                     lst = _get_list(raw, "laston", "users", "items", "data")
                     result[SENSOR_LASTON_COUNT] = len(lst) if lst is not None else 0
@@ -319,18 +338,24 @@ class WWIVDSensor(
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return extra attributes."""
+        """Return extra attributes including raw JSON payload for the endpoint."""
         if not self.coordinator.data:
             return {}
         attrs: dict[str, Any] = {
             ATTR_LAST_UPDATED: self.coordinator.data.get(ATTR_LAST_UPDATED),
         }
+        if self._sensor_key == SENSOR_MODEM_STATUS:
+            payload = self.coordinator.data.get(SENSOR_MODEM_STATUS)
+            if isinstance(payload, dict):
+                attrs[ATTR_JSON_PAYLOAD] = payload
+        else:
+            payload_key = SENSOR_TO_PAYLOAD_KEY.get(self._sensor_key)
+            if payload_key:
+                payload = self.coordinator.data.get(payload_key)
+                if payload is not None:
+                    attrs[ATTR_JSON_PAYLOAD] = payload
         if self._sensor_key == SENSOR_LASTON_COUNT:
             laston = self.coordinator.data.get(SENSOR_LASTON)
             if isinstance(laston, list) and laston:
                 attrs["laston"] = laston[:20]
-        if self._sensor_key == SENSOR_MODEM_STATUS:
-            modem = self.coordinator.data.get(SENSOR_MODEM_STATUS)
-            if isinstance(modem, dict):
-                attrs["modem_status"] = modem
         return attrs

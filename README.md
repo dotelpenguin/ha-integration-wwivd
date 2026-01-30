@@ -57,8 +57,9 @@ To change settings later: select the WWIVD integration and click **Configure**.
 | /sysop     | Feedback today      | Feedback today                 |
 | /sysop     | Feedback waiting    | Feedback waiting               |
 | /laston    | Last on count       | Number of users in laston list |
+| /modem_status | Modem status     | Modem Manager (when enabled)   |
 
-The **Last on count** sensor also exposes a `laston` attribute with the list of recent users (capped in attributes).
+Each sensor includes a **`data`** attribute with the raw JSON payload from that endpoint, so you can use the full response in templates or automations. The **Last on count** sensor also exposes a `laston` attribute with the list of recent users (capped in attributes).
 
 ## Services
 
