@@ -225,8 +225,9 @@ class WWIVDCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 result[DATA_LASTON] = raw
                 if raw is not None:
                     lst = _get_list(raw, "laston", "users", "items", "data")
-                    result[SENSOR_LASTON_COUNT] = len(lst) if lst is not None else 0
                     result[SENSOR_LASTON] = lst
+                    count = _get_int_from_payload(raw, "count")
+                    result[SENSOR_LASTON_COUNT] = count if count is not None else (len(lst) if lst else 0)
                 else:
                     result[SENSOR_LASTON_COUNT] = None
                     result[SENSOR_LASTON] = []
