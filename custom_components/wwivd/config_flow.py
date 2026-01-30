@@ -296,15 +296,30 @@ def _options_schema(data: dict[str, Any] | None) -> vol.Schema:
     )
 
 
+def _safe_options_data(config_entry: config_entries.ConfigEntry) -> dict[str, Any]:
+    """Build a plain dict from config entry data; never raise."""
+    try:
+        raw = getattr(config_entry, "data", None)
+        if not isinstance(raw, dict):
+            return {}
+        return {k: v for k, v in raw.items() if k in (
+            CONF_HOST, CONF_PORT, CONF_REFRESH_INTERVAL,
+            CONF_ENABLE_INSTANCES, CONF_ENABLE_BLOCKING,
+            CONF_ENABLE_SYSOP, CONF_ENABLE_LASTON,
+            CONF_MODEM_ENABLED, CONF_MODEM_HOST, CONF_MODEM_PORT,
+            CONF_MODEM_REFRESH_INTERVAL,
+        )}
+    except Exception:  # pylint: disable=broad-except
+        return {}
+
+
 class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle WWIVD options."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
         self.config_entry = config_entry
-        # config_entry.data can be None in some HA versions or after migration
-        raw = config_entry.data
-        self._data = dict(raw) if isinstance(raw, dict) else {}
+        self._data = _safe_options_data(config_entry)
 
     def _options_form(
         self,
