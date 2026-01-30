@@ -85,6 +85,25 @@ def _get_int(data: dict[str, Any], *keys: str) -> int | None:
     return None
 
 
+def _get_int_from_payload(payload: Any, *keys: str) -> int | None:
+    """Get int from JSON payload: top-level, nested (data/instances/result), or first list element."""
+    if payload is None:
+        return None
+    if isinstance(payload, list) and payload and isinstance(payload[0], dict):
+        payload = payload[0]
+    if not isinstance(payload, dict):
+        return None
+    v = _get_int(payload, *keys)
+    if v is not None:
+        return v
+    for nest in ("data", "instances", "result"):
+        if nest in payload and isinstance(payload[nest], dict):
+            v = _get_int(payload[nest], *keys)
+            if v is not None:
+                return v
+    return None
+
+
 def _get_list(data: dict[str, Any], *keys: str) -> list[Any]:
     """Return first key that exists and is a list, else []."""
     for key in keys:
@@ -138,8 +157,8 @@ class WWIVDCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 raw = await _fetch_json(session, f"{base}{ENDPOINT_INSTANCES}")
                 result[DATA_INSTANCES] = raw
                 if raw is not None:
-                    result[SENSOR_USED_INSTANCES] = _get_int(
-                        raw, "used_instances", "used", "instances"
+                    result[SENSOR_USED_INSTANCES] = _get_int_from_payload(
+                        raw, "used_instances", "usedInstances", "used", "instances"
                     )
                 if SENSOR_USED_INSTANCES not in result:
                     result[SENSOR_USED_INSTANCES] = None
