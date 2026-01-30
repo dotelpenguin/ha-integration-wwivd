@@ -1,0 +1,13 @@
+{
+  "domain": "wwivd",
+  "name": "WWIVD",
+  "codeowners": ["@dotelpenguin"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/dotelpenguin/ha-integration-wwivd",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/dotelpenguin/ha-integration-wwivd/issues",
+  "requirements": ["aiohttp>=3.8.0"],
+  "version": "1.0.0"
+}

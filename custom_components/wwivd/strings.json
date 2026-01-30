@@ -1,0 +1,93 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "WWIVD Setup",
+        "description": "Configure your WWIVD server. You must be using the latest WWIVD with enhanced status endpoints enabled. See the [documentation]({docs}) for details.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "refresh_interval": "Refresh interval (seconds)",
+          "enable_instances": "Enable /instances (node status)",
+          "enable_blocking": "Enable /blocking (IP whitelist/blacklist)",
+          "enable_sysop": "Enable /sysop (sysop and system status)",
+          "enable_laston": "Enable /laston (last users who logged on)",
+          "modem_enabled": "Enable Modem Manager (StarDoc 134)"
+        }
+      },
+      "modem": {
+        "title": "Modem Manager",
+        "description": "Enter the Modem Manager server host and port (e.g. for StarDoc 134).",
+        "data": {
+          "modem_host": "Modem Manager host",
+          "modem_port": "Modem Manager port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to WWIVD. Check host, port, and that enhanced status endpoints are enabled.",
+      "cannot_connect_modem": "Unable to connect to Modem Manager. Check host and port.",
+      "invalid_config": "At least one endpoint must be enabled.",
+      "invalid_refresh_interval": "Refresh interval must be at least 5 seconds.",
+      "unknown": "An unexpected error occurred."
+    },
+    "abort": {
+      "already_configured": "This WWIVD server is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "WWIVD Options",
+        "description": "Update connection and endpoint settings.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "refresh_interval": "Refresh interval (seconds)",
+          "enable_instances": "Enable /instances",
+          "enable_blocking": "Enable /blocking",
+          "enable_sysop": "Enable /sysop",
+          "enable_laston": "Enable /laston",
+          "modem_enabled": "Enable Modem Manager",
+          "modem_host": "Modem Manager host",
+          "modem_port": "Modem Manager port"
+        }
+      }
+    },
+    "error": {
+      "invalid_refresh_interval": "Refresh interval must be at least 5 seconds.",
+      "invalid_config": "At least one endpoint must be enabled."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "used_instances": {
+        "name": "Used instances"
+      },
+      "auto_blocked_count": {
+        "name": "Auto blocked count"
+      },
+      "calls_today": {
+        "name": "Calls today"
+      },
+      "email_today": {
+        "name": "Email today"
+      },
+      "feedback_today": {
+        "name": "Feedback today"
+      },
+      "feedback_waiting": {
+        "name": "Feedback waiting"
+      },
+      "laston_count": {
+        "name": "Last on count"
+      }
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Refresh",
+      "description": "Manually refresh WWIVD data for this connection"
+    }
+  }
+}
