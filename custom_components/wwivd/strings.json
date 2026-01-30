@@ -33,7 +33,8 @@
       "unknown": "An unexpected error occurred."
     },
     "abort": {
-      "already_configured": "This WWIVD server is already configured."
+      "already_configured": "This WWIVD server is already configured.",
+      "options_load_failed": "Could not load options. Check the logs for details."
     }
   },
   "options": {

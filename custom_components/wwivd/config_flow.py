@@ -233,47 +233,64 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return OptionsFlowHandler(config_entry)
 
 
-def _options_schema(data: dict[str, Any]) -> vol.Schema:
-    """Build options form schema from current data."""
+def _options_schema(data: dict[str, Any] | None) -> vol.Schema:
+    """Build options form schema from current data. Coerce None to safe defaults."""
+    if data is None:
+        data = {}
     return vol.Schema(
         {
-            vol.Required(CONF_HOST, default=data.get(CONF_HOST, "")): str,
-            vol.Required(CONF_PORT, default=data.get(CONF_PORT, DEFAULT_PORT)): int,
+            vol.Required(CONF_HOST, default=(data.get(CONF_HOST) or "")): str,
+            vol.Required(
+                CONF_PORT,
+                default=DEFAULT_PORT if data.get(CONF_PORT) is None else data.get(CONF_PORT),
+            ): int,
             vol.Required(
                 CONF_REFRESH_INTERVAL,
-                default=data.get(CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL),
+                default=(
+                    DEFAULT_REFRESH_INTERVAL
+                    if data.get(CONF_REFRESH_INTERVAL) is None
+                    else data.get(CONF_REFRESH_INTERVAL)
+                ),
             ): int,
             vol.Required(
                 CONF_ENABLE_INSTANCES,
-                default=data.get(CONF_ENABLE_INSTANCES, True),
+                default=data.get(CONF_ENABLE_INSTANCES, True) is not False,
             ): bool,
             vol.Required(
                 CONF_ENABLE_BLOCKING,
-                default=data.get(CONF_ENABLE_BLOCKING, True),
+                default=data.get(CONF_ENABLE_BLOCKING, True) is not False,
             ): bool,
             vol.Required(
                 CONF_ENABLE_SYSOP,
-                default=data.get(CONF_ENABLE_SYSOP, True),
+                default=data.get(CONF_ENABLE_SYSOP, True) is not False,
             ): bool,
             vol.Required(
                 CONF_ENABLE_LASTON,
-                default=data.get(CONF_ENABLE_LASTON, True),
+                default=data.get(CONF_ENABLE_LASTON, True) is not False,
             ): bool,
             vol.Required(
                 CONF_MODEM_ENABLED,
-                default=data.get(CONF_MODEM_ENABLED, False),
+                default=data.get(CONF_MODEM_ENABLED, False) is True,
             ): bool,
             vol.Optional(
                 CONF_MODEM_HOST,
-                default=data.get(CONF_MODEM_HOST, ""),
+                default=(data.get(CONF_MODEM_HOST) or ""),
             ): str,
             vol.Optional(
                 CONF_MODEM_PORT,
-                default=data.get(CONF_MODEM_PORT, DEFAULT_MODEM_PORT),
+                default=(
+                    DEFAULT_MODEM_PORT
+                    if data.get(CONF_MODEM_PORT) is None
+                    else data.get(CONF_MODEM_PORT)
+                ),
             ): int,
             vol.Optional(
                 CONF_MODEM_REFRESH_INTERVAL,
-                default=data.get(CONF_MODEM_REFRESH_INTERVAL, DEFAULT_MODEM_REFRESH_INTERVAL),
+                default=(
+                    DEFAULT_MODEM_REFRESH_INTERVAL
+                    if data.get(CONF_MODEM_REFRESH_INTERVAL) is None
+                    else data.get(CONF_MODEM_REFRESH_INTERVAL)
+                ),
             ): int,
         }
     )
@@ -306,7 +323,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Manage options."""
         if user_input is None:
-            return self._options_form(None)
+            try:
+                return self._options_form(None)
+            except Exception as err:  # pylint: disable=broad-except
+                _LOGGER.exception("Options flow failed to show form: %s", err)
+                return self.async_abort(reason="options_load_failed")
 
         refresh = user_input.get(CONF_REFRESH_INTERVAL, DEFAULT_REFRESH_INTERVAL)
         any_endpoint = (
