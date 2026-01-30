@@ -15,7 +15,7 @@ A Home Assistant integration that connects to a WWIV BBS (WWIVD) server's enhanc
   - **/blocking** – IP whitelist/blacklist management → `auto_blocked_count` sensor
   - **/sysop** – Sysop and system status → `calls_today`, `email_today`, `feedback_today`, `feedback_waiting` sensors
   - **/laston** – Last users who logged on → `laston_count` sensor and list in attributes
-- Optional **Modem Manager** (e.g. StarDoc 134): separate host/port, `/modem_status` (default disabled)
+- Optional **Modem Manager** (e.g. StarDoc 134): separate host, port, and refresh interval (may be on a different node), `/modem_status` (default disabled)
 - Manual refresh service per connection
 - Options flow to change host, port, refresh interval, and endpoint toggles without re-adding the integration
 
@@ -41,7 +41,7 @@ See [MANUAL_INSTALL.md](MANUAL_INSTALL.md).
    - **Port**: Port (default `8080`)
    - **Refresh interval**: Seconds between updates (default `30`, minimum `5`)
    - Enable/disable each endpoint as needed.
-   - Optionally enable **Modem Manager** and enter its host/port (e.g. for StarDoc 134).
+   - Optionally enable **Modem Manager** and enter its host, port, and refresh interval (it may be on a different node; e.g. StarDoc 134).
 4. Complete the setup. Sensors will be created for each enabled endpoint.
 
 To change settings later: select the WWIVD integration and click **Configure**.

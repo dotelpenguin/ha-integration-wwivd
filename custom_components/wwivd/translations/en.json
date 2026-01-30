@@ -17,10 +17,11 @@
       },
       "modem": {
         "title": "Modem Manager",
-        "description": "Enter the Modem Manager server host and port.",
+        "description": "Modem Manager may be on a different node. Enter its host, port, and refresh interval.",
         "data": {
           "modem_host": "Modem Manager host",
-          "modem_port": "Modem Manager port"
+          "modem_port": "Modem Manager port",
+          "modem_refresh_interval": "Modem Manager refresh interval (seconds)"
         }
       }
     },
@@ -50,7 +51,8 @@
           "enable_laston": "Enable /laston",
           "modem_enabled": "Enable Modem Manager",
           "modem_host": "Modem Manager host",
-          "modem_port": "Modem Manager port"
+          "modem_port": "Modem Manager port",
+          "modem_refresh_interval": "Modem Manager refresh interval (seconds)"
         }
       }
     },

@@ -24,9 +24,11 @@ from .const import (
     CONF_MODEM_ENABLED,
     CONF_MODEM_HOST,
     CONF_MODEM_PORT,
+    CONF_MODEM_REFRESH_INTERVAL,
     DEFAULT_PORT,
     DEFAULT_REFRESH_INTERVAL,
     DEFAULT_MODEM_PORT,
+    DEFAULT_MODEM_REFRESH_INTERVAL,
     MIN_REFRESH_INTERVAL,
     ENDPOINT_INSTANCES,
     ENDPOINT_BLOCKING,
@@ -60,6 +62,10 @@ STEP_MODEM_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_MODEM_HOST, default=""): str,
         vol.Required(CONF_MODEM_PORT, default=DEFAULT_MODEM_PORT): int,
+        vol.Required(
+            CONF_MODEM_REFRESH_INTERVAL,
+            default=DEFAULT_MODEM_REFRESH_INTERVAL,
+        ): int,
     }
 )
 
@@ -184,17 +190,20 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
         errors: dict[str, str] = {}
-        try:
-            await validate_modem(
-                self.hass,
-                user_input[CONF_MODEM_HOST].strip(),
-                user_input[CONF_MODEM_PORT],
-            )
-        except CannotConnect:
-            errors["base"] = "cannot_connect_modem"
-        except Exception:  # pylint: disable=broad-except
-            _LOGGER.exception("Unexpected error validating Modem Manager")
-            errors["base"] = "unknown"
+        if user_input.get(CONF_MODEM_REFRESH_INTERVAL, DEFAULT_MODEM_REFRESH_INTERVAL) < MIN_REFRESH_INTERVAL:
+            errors["base"] = "invalid_refresh_interval"
+        if not errors:
+            try:
+                await validate_modem(
+                    self.hass,
+                    user_input[CONF_MODEM_HOST].strip(),
+                    user_input[CONF_MODEM_PORT],
+                )
+            except CannotConnect:
+                errors["base"] = "cannot_connect_modem"
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected error validating Modem Manager")
+                errors["base"] = "unknown"
 
         if errors:
             return self.async_show_form(
@@ -205,6 +214,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         self._data[CONF_MODEM_HOST] = user_input[CONF_MODEM_HOST].strip()
         self._data[CONF_MODEM_PORT] = user_input[CONF_MODEM_PORT]
+        self._data[CONF_MODEM_REFRESH_INTERVAL] = user_input[CONF_MODEM_REFRESH_INTERVAL]
         return self._create_entry()
 
     def _create_entry(self) -> FlowResult:
@@ -261,6 +271,10 @@ def _options_schema(data: dict[str, Any]) -> vol.Schema:
                 CONF_MODEM_PORT,
                 default=data.get(CONF_MODEM_PORT, DEFAULT_MODEM_PORT),
             ): int,
+            vol.Optional(
+                CONF_MODEM_REFRESH_INTERVAL,
+                default=data.get(CONF_MODEM_REFRESH_INTERVAL, DEFAULT_MODEM_REFRESH_INTERVAL),
+            ): int,
         }
     )
 
@@ -305,11 +319,16 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             return self._options_form(user_input, "invalid_refresh_interval")
         if not any_endpoint:
             return self._options_form(user_input, "invalid_config")
+        if user_input.get(CONF_MODEM_ENABLED) and user_input.get(
+            CONF_MODEM_REFRESH_INTERVAL, DEFAULT_MODEM_REFRESH_INTERVAL
+        ) < MIN_REFRESH_INTERVAL:
+            return self._options_form(user_input, "invalid_refresh_interval")
 
         self._data.update(user_input)
         if not self._data.get(CONF_MODEM_ENABLED):
             self._data.pop(CONF_MODEM_HOST, None)
             self._data.pop(CONF_MODEM_PORT, None)
+            self._data.pop(CONF_MODEM_REFRESH_INTERVAL, None)
 
         self.hass.config_entries.async_update_entry(self.config_entry, data=self._data)
         await self.hass.config_entries.async_reload(self.config_entry.entry_id)

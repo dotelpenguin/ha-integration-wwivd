@@ -33,7 +33,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up WWIVD from a config entry."""
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = {"coordinator": None}
+    hass.data[DOMAIN][entry.entry_id] = {"coordinator": None, "modem_coordinator": None}
 
     await hass.config_entries.async_forward_entry_setups(entry, ["sensor"])
 
@@ -41,9 +41,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     service_name = _refresh_service_name(entry)
 
     async def handle_refresh(call: ServiceCall) -> None:
-        coordinator = hass.data[DOMAIN][entry.entry_id].get("coordinator")
+        entry_data = hass.data[DOMAIN][entry.entry_id]
+        coordinator = entry_data.get("coordinator")
+        modem_coordinator = entry_data.get("modem_coordinator")
         if coordinator:
             await coordinator.async_request_refresh()
+        if modem_coordinator:
+            await modem_coordinator.async_request_refresh()
+        if coordinator or modem_coordinator:
             _LOGGER.info("Manually refreshed WWIVD data for %s", connection_name)
         else:
             _LOGGER.warning("No coordinator available for %s", connection_name)

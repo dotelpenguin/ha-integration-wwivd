@@ -14,7 +14,7 @@
 
 ## Modem Manager cannot connect
 
-- **Separate host/port**: Modem Manager is a separate service (e.g. StarDoc 134). Use its actual host and port, not the main WWIVD host/port.
+- **Separate host/port/refresh**: Modem Manager is a separate service and may be on a different node (e.g. StarDoc 134). Use its actual host, port, and refresh interval; these are independent of the main WWIVD settings.
 - **Endpoint**: The integration expects a `/modem_status` endpoint that returns JSON. Ensure that endpoint is enabled and returns valid JSON.
 
 ## Changing settings

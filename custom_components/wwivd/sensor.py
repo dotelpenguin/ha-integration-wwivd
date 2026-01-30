@@ -29,9 +29,11 @@ from .const import (
     CONF_MODEM_ENABLED,
     CONF_MODEM_HOST,
     CONF_MODEM_PORT,
+    CONF_MODEM_REFRESH_INTERVAL,
     DEFAULT_PORT,
     DEFAULT_REFRESH_INTERVAL,
     DEFAULT_MODEM_PORT,
+    DEFAULT_MODEM_REFRESH_INTERVAL,
     ENDPOINT_INSTANCES,
     ENDPOINT_BLOCKING,
     ENDPOINT_SYSOP,
@@ -88,7 +90,7 @@ async def _fetch_json(session: aiohttp.ClientSession, url: str) -> dict[str, Any
 
 
 class WWIVDCoordinator(DataUpdateCoordinator[dict[str, Any]]):
-    """Fetches WWIVD endpoint data and exposes a flat dict of sensor values."""
+    """Fetches WWIVD endpoint data (instances, blocking, sysop, laston) on its own schedule."""
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Initialize coordinator."""
@@ -101,9 +103,6 @@ class WWIVDCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._enable_blocking = data.get(CONF_ENABLE_BLOCKING, True)
         self._enable_sysop = data.get(CONF_ENABLE_SYSOP, True)
         self._enable_laston = data.get(CONF_ENABLE_LASTON, True)
-        self._modem_enabled = data.get(CONF_MODEM_ENABLED, False)
-        self._modem_host = (data.get(CONF_MODEM_HOST) or "").strip()
-        self._modem_port = data.get(CONF_MODEM_PORT, DEFAULT_MODEM_PORT)
 
         super().__init__(
             hass,
@@ -113,7 +112,7 @@ class WWIVDCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
 
     async def _async_update_data(self) -> dict[str, Any]:
-        """Fetch all enabled endpoints and return flat sensor dict."""
+        """Fetch enabled WWIVD endpoints (no Modem Manager)."""
         result: dict[str, Any] = {
             ATTR_LAST_UPDATED: datetime.now(timezone.utc).isoformat(),
         }
@@ -172,18 +171,43 @@ class WWIVDCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     result[SENSOR_LASTON_COUNT] = None
                     result[SENSOR_LASTON] = []
 
-            if self._modem_enabled and self._modem_host:
-                modem_base = _base_url(self._modem_host, self._modem_port)
-                raw = await _fetch_json(
-                    session, f"{modem_base}{ENDPOINT_MODEM_STATUS}"
-                )
-                if raw is not None:
-                    result[SENSOR_MODEM_STATUS] = raw
-                else:
-                    result[SENSOR_MODEM_STATUS] = None
-            else:
-                result[SENSOR_MODEM_STATUS] = None
+        return result
 
+
+class ModemCoordinator(DataUpdateCoordinator[dict[str, Any]]):
+    """Fetches Modem Manager /modem_status on its own host, port, and refresh interval."""
+
+    def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
+        """Initialize coordinator."""
+        self.config_entry = config_entry
+        data = config_entry.data
+        self._host = (data.get(CONF_MODEM_HOST) or "").strip()
+        self._port = data.get(CONF_MODEM_PORT, DEFAULT_MODEM_PORT)
+        self._refresh = data.get(
+            CONF_MODEM_REFRESH_INTERVAL, DEFAULT_MODEM_REFRESH_INTERVAL
+        )
+
+        super().__init__(
+            hass,
+            _LOGGER,
+            name=f"{DOMAIN}_modem",
+            update_interval=timedelta(seconds=self._refresh),
+        )
+
+    async def _async_update_data(self) -> dict[str, Any]:
+        """Fetch Modem Manager endpoint only."""
+        result: dict[str, Any] = {
+            ATTR_LAST_UPDATED: datetime.now(timezone.utc).isoformat(),
+            SENSOR_MODEM_STATUS: None,
+        }
+        if not self._host:
+            return result
+        base = _base_url(self._host, self._port)
+        url = f"{base}{ENDPOINT_MODEM_STATUS}"
+        async with aiohttp.ClientSession() as session:
+            raw = await _fetch_json(session, url)
+            if raw is not None:
+                result[SENSOR_MODEM_STATUS] = raw
         return result
 
 
@@ -213,14 +237,29 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up WWIVD sensors from a config entry."""
+    entry_id = config_entry.entry_id
     coordinator = WWIVDCoordinator(hass, config_entry)
-    hass.data[DOMAIN][config_entry.entry_id]["coordinator"] = coordinator
+    hass.data[DOMAIN][entry_id]["coordinator"] = coordinator
+
+    modem_coordinator = None
+    if config_entry.data.get(CONF_MODEM_ENABLED) and config_entry.data.get(
+        CONF_MODEM_HOST
+    ):
+        modem_coordinator = ModemCoordinator(hass, config_entry)
+        hass.data[DOMAIN][entry_id]["modem_coordinator"] = modem_coordinator
 
     entities = []
     for sensor_key, name, icon in _sensors_for_config(config_entry):
-        entities.append(
-            WWIVDSensor(coordinator, config_entry.entry_id, sensor_key, name, icon)
-        )
+        if sensor_key == SENSOR_MODEM_STATUS and modem_coordinator is not None:
+            entities.append(
+                WWIVDSensor(
+                    modem_coordinator, entry_id, sensor_key, name, icon
+                )
+            )
+        elif sensor_key != SENSOR_MODEM_STATUS:
+            entities.append(
+                WWIVDSensor(coordinator, entry_id, sensor_key, name, icon)
+            )
 
     async_add_entities(entities)
 
@@ -231,14 +270,24 @@ async def async_setup_entry(
             "Initial WWIVD fetch failed: %s. Sensors may show unavailable until the server is reachable.",
             err,
         )
+    if modem_coordinator is not None:
+        try:
+            await modem_coordinator.async_config_entry_first_refresh()
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.warning(
+                "Initial Modem Manager fetch failed: %s. Modem sensor may show unavailable.",
+                err,
+            )
 
 
-class WWIVDSensor(CoordinatorEntity[WWIVDCoordinator], SensorEntity):
-    """Representation of a WWIVD sensor."""
+class WWIVDSensor(
+    CoordinatorEntity[DataUpdateCoordinator[dict[str, Any]]], SensorEntity
+):
+    """Representation of a WWIVD sensor (WWIVD or Modem coordinator)."""
 
     def __init__(
         self,
-        coordinator: WWIVDCoordinator,
+        coordinator: DataUpdateCoordinator[dict[str, Any]],
         entry_id: str,
         sensor_key: str,
         name: str,
