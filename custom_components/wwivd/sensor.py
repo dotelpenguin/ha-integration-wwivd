@@ -85,8 +85,30 @@ def _get_int(data: dict[str, Any], *keys: str) -> int | None:
     return None
 
 
+def _find_int_in_value(val: Any, keys: tuple[str, ...], depth: int, max_depth: int) -> int | None:
+    """Recursively find first int value for any of the given keys (depth-limited)."""
+    if depth > max_depth or val is None:
+        return None
+    if isinstance(val, dict):
+        v = _get_int(val, *keys)
+        if v is not None:
+            return v
+        for k, child in val.items():
+            v = _find_int_in_value(child, keys, depth + 1, max_depth)
+            if v is not None:
+                return v
+        return None
+    if isinstance(val, list):
+        for item in val:
+            v = _find_int_in_value(item, keys, depth + 1, max_depth)
+            if v is not None:
+                return v
+        return None
+    return None
+
+
 def _get_int_from_payload(payload: Any, *keys: str) -> int | None:
-    """Get int from JSON payload: top-level, nested (data/instances/result), or first list element."""
+    """Get int from JSON payload: try known paths first, then search recursively."""
     if payload is None:
         return None
     if isinstance(payload, list) and payload and isinstance(payload[0], dict):
@@ -101,7 +123,7 @@ def _get_int_from_payload(payload: Any, *keys: str) -> int | None:
             v = _get_int(payload[nest], *keys)
             if v is not None:
                 return v
-    return None
+    return _find_int_in_value(payload, keys, 0, max_depth=6)
 
 
 def _get_list(data: dict[str, Any], *keys: str) -> list[Any]:
