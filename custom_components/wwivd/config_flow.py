@@ -252,17 +252,17 @@ def _options_schema(data: dict[str, Any] | None) -> vol.Schema:
     
     return vol.Schema(
         {
-            vol.Required(CONF_HOST, default=host): str,
-            vol.Required(CONF_PORT, default=port): int,
-            vol.Required(CONF_REFRESH_INTERVAL, default=refresh): int,
-            vol.Required(CONF_ENABLE_INSTANCES, default=enable_instances): bool,
-            vol.Required(CONF_ENABLE_BLOCKING, default=enable_blocking): bool,
-            vol.Required(CONF_ENABLE_SYSOP, default=enable_sysop): bool,
-            vol.Required(CONF_ENABLE_LASTON, default=enable_laston): bool,
-            vol.Required(CONF_MODEM_ENABLED, default=modem_enabled): bool,
-            vol.Optional(CONF_MODEM_HOST, default=modem_host): str,
-            vol.Optional(CONF_MODEM_PORT, default=modem_port): int,
-            vol.Optional(CONF_MODEM_REFRESH_INTERVAL, default=modem_refresh): int,
+            vol.Required("host", default=host): str,
+            vol.Required("port", default=port): int,
+            vol.Required("refresh_interval", default=refresh): int,
+            vol.Required("enable_instances", default=enable_instances): bool,
+            vol.Required("enable_blocking", default=enable_blocking): bool,
+            vol.Required("enable_sysop", default=enable_sysop): bool,
+            vol.Required("enable_laston", default=enable_laston): bool,
+            vol.Required("modem_enabled", default=modem_enabled): bool,
+            vol.Optional("modem_host", default=modem_host): str,
+            vol.Optional("modem_port", default=modem_port): int,
+            vol.Optional("modem_refresh_interval", default=modem_refresh): int,
         }
     )
 
@@ -360,11 +360,21 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         ) < MIN_REFRESH_INTERVAL:
             return self._options_form(user_input, "invalid_refresh_interval")
 
-        data_to_save = dict(user_input)
-        if not data_to_save.get(CONF_MODEM_ENABLED):
-            data_to_save.pop(CONF_MODEM_HOST, None)
-            data_to_save.pop(CONF_MODEM_PORT, None)
-            data_to_save.pop(CONF_MODEM_REFRESH_INTERVAL, None)
+        # user_input uses string keys from schema, map to CONF_* constants for storage
+        data_to_save = {
+            CONF_HOST: user_input.get("host", ""),
+            CONF_PORT: user_input.get("port", DEFAULT_PORT),
+            CONF_REFRESH_INTERVAL: user_input.get("refresh_interval", DEFAULT_REFRESH_INTERVAL),
+            CONF_ENABLE_INSTANCES: user_input.get("enable_instances", True),
+            CONF_ENABLE_BLOCKING: user_input.get("enable_blocking", True),
+            CONF_ENABLE_SYSOP: user_input.get("enable_sysop", True),
+            CONF_ENABLE_LASTON: user_input.get("enable_laston", True),
+            CONF_MODEM_ENABLED: user_input.get("modem_enabled", False),
+        }
+        if data_to_save.get(CONF_MODEM_ENABLED):
+            data_to_save[CONF_MODEM_HOST] = user_input.get("modem_host", "")
+            data_to_save[CONF_MODEM_PORT] = user_input.get("modem_port", DEFAULT_MODEM_PORT)
+            data_to_save[CONF_MODEM_REFRESH_INTERVAL] = user_input.get("modem_refresh_interval", DEFAULT_MODEM_REFRESH_INTERVAL)
 
         self.hass.config_entries.async_update_entry(self.config_entry, data=data_to_save)
         # Clear cached data so next time we reload fresh
