@@ -273,24 +273,27 @@ def _options_schema(data: dict[str, Any] | None) -> vol.Schema:
 
 
 def _safe_options_data(config_entry: config_entries.ConfigEntry) -> dict[str, Any]:
-    """Build a plain dict from config entry data and options; never raise."""
+    """Build a plain dict from config entry data and options; never raise.
+    
+    Note: config_entry.data/options are mappingproxy (immutable), not dict.
+    Convert to dict using dict() constructor.
+    """
     try:
         # Merge data and options (options override data for same keys)
         data = getattr(config_entry, "data", None)
         options = getattr(config_entry, "options", None)
-        _LOGGER.error("WWIVD OPTIONS: _safe_options_data called")
-        _LOGGER.error("WWIVD OPTIONS: data type=%s, value=%s", type(data), data)
-        _LOGGER.error("WWIVD OPTIONS: options type=%s, value=%s", type(options), options)
         raw = {}
-        if isinstance(data, dict):
-            raw.update(data)
-            _LOGGER.error("WWIVD OPTIONS: Updated raw from data, now: %s", raw)
-        if isinstance(options, dict):
-            raw.update(options)
-            _LOGGER.error("WWIVD OPTIONS: Updated raw from options, now: %s", raw)
-        # Return all keys - don't filter, let schema handle defaults
-        _LOGGER.error("WWIVD OPTIONS: Final raw dict: %s", raw)
-        _LOGGER.error("WWIVD OPTIONS: Raw keys: %s", list(raw.keys()))
+        # Handle mappingproxy (immutable dict-like) by converting to dict
+        if data is not None:
+            try:
+                raw.update(dict(data))
+            except (TypeError, ValueError, AttributeError):
+                pass
+        if options is not None:
+            try:
+                raw.update(dict(options))
+            except (TypeError, ValueError, AttributeError):
+                pass
         return dict(raw)  # Return copy of all data
     except Exception as err:  # pylint: disable=broad-except
         _LOGGER.exception("Failed to load options data: %s", err)
