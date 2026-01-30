@@ -303,13 +303,22 @@ def _safe_options_data(config_entry: config_entries.ConfigEntry) -> dict[str, An
         # Merge data and options (options override data for same keys)
         data = getattr(config_entry, "data", None)
         options = getattr(config_entry, "options", None)
+        _LOGGER.debug(
+            "Loading options: data=%s (type=%s), options=%s (type=%s)",
+            data is not None,
+            type(data).__name__ if data is not None else None,
+            options is not None,
+            type(options).__name__ if options is not None else None,
+        )
         raw = {}
         if isinstance(data, dict):
             raw.update(data)
+            _LOGGER.debug("Data keys: %s", list(data.keys()))
         if isinstance(options, dict):
             raw.update(options)
+            _LOGGER.debug("Options keys: %s", list(options.keys()))
         if not raw:
-            _LOGGER.debug("Config entry has no data or options")
+            _LOGGER.warning("Config entry has no data or options - entry_id=%s", getattr(config_entry, "entry_id", "unknown"))
             return {}
         # Filter to known config keys
         known_keys = (
@@ -320,7 +329,7 @@ def _safe_options_data(config_entry: config_entries.ConfigEntry) -> dict[str, An
             CONF_MODEM_REFRESH_INTERVAL,
         )
         result = {k: v for k, v in raw.items() if k in known_keys}
-        _LOGGER.debug("Loaded options data: %s (from keys: %s)", result, list(raw.keys()))
+        _LOGGER.info("Loaded options data: %s (from raw keys: %s)", result, list(raw.keys()))
         return result
     except Exception as err:  # pylint: disable=broad-except
         _LOGGER.exception("Failed to load options data: %s", err)
@@ -330,12 +339,28 @@ def _safe_options_data(config_entry: config_entries.ConfigEntry) -> dict[str, An
 class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle WWIVD options. config_entry is provided by parent OptionsFlow."""
 
+    @property
+    def _data(self) -> dict[str, Any]:
+        """Load and cache config entry data (like jirafilters self._data pattern)."""
+        if not hasattr(self, "_cached_data"):
+            # Get fresh entry from config store to ensure we have latest data
+            entry = self.hass.config_entries.async_get_entry(self.config_entry.entry_id)
+            if entry:
+                self._cached_data = _safe_options_data(entry)
+            else:
+                _LOGGER.warning("Config entry %s not found in store", self.config_entry.entry_id)
+                self._cached_data = _safe_options_data(self.config_entry)
+            _LOGGER.debug("Loaded config entry data: %s", self._cached_data)
+        return self._cached_data
+
     def _options_form(
         self,
-        data: dict[str, Any],
+        data: dict[str, Any] | None = None,
         error: str | None = None,
     ) -> FlowResult:
         """Show options form with optional error. data = current values for defaults."""
+        if data is None:
+            data = self._data
         errors = {"base": error} if error else {}
         return self.async_show_form(
             step_id="init",
@@ -349,10 +374,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Manage options."""
         if user_input is None:
             try:
-                # self.config_entry is provided by parent OptionsFlow
-                current = _safe_options_data(self.config_entry)
-                _LOGGER.debug("Options form data: %s", current)
-                return self._options_form(current)
+                # Use cached _data property (loads from self.config_entry)
+                return self._options_form()
             except Exception as err:  # pylint: disable=broad-except
                 _LOGGER.exception("Options flow failed to show form: %s", err)
                 return self.async_abort(reason="options_load_failed")
@@ -380,5 +403,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             data_to_save.pop(CONF_MODEM_REFRESH_INTERVAL, None)
 
         self.hass.config_entries.async_update_entry(self.config_entry, data=data_to_save)
+        # Clear cached data so next time we reload fresh
+        if hasattr(self, "_cached_data"):
+            delattr(self, "_cached_data")
         await self.hass.config_entries.async_reload(self.config_entry.entry_id)
         return self.async_create_entry(title="", data={})
