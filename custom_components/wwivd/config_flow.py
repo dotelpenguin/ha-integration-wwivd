@@ -229,8 +229,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> config_entries.OptionsFlow:
-        """Get the options flow."""
-        return OptionsFlowHandler(config_entry)
+        """Get the options flow. Handler gets config_entry from parent."""
+        return OptionsFlowHandler()
 
 
 def _options_schema(data: dict[str, Any] | None) -> vol.Schema:
@@ -314,11 +314,7 @@ def _safe_options_data(config_entry: config_entries.ConfigEntry) -> dict[str, An
 
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
-    """Handle WWIVD options."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow. Do not access config_entry.data here."""
-        self.config_entry = config_entry
+    """Handle WWIVD options. config_entry is provided by parent OptionsFlow."""
 
     def _options_form(
         self,
