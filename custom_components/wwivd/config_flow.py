@@ -237,8 +237,9 @@ def _options_schema(data: dict[str, Any] | None) -> vol.Schema:
     """Build options form schema from current data. Coerce None to safe defaults."""
     if data is None:
         data = {}
-    _LOGGER.warning("WWIVD OPTIONS DEBUG: Building schema from data dict: %s", data)
-    _LOGGER.warning("WWIVD OPTIONS DEBUG: Data dict keys: %s", list(data.keys()) if isinstance(data, dict) else "NOT A DICT")
+    _LOGGER.error("WWIVD OPTIONS: Building schema from data dict: %s", data)
+    _LOGGER.error("WWIVD OPTIONS: Data dict type: %s", type(data))
+    _LOGGER.error("WWIVD OPTIONS: Data dict keys: %s", list(data.keys()) if isinstance(data, dict) else "NOT A DICT")
     # Extract values with type safety - use CONF_* constants to read from data
     host = str(data.get(CONF_HOST, "") or "")
     port = int(data.get(CONF_PORT, DEFAULT_PORT) or DEFAULT_PORT)
@@ -251,7 +252,7 @@ def _options_schema(data: dict[str, Any] | None) -> vol.Schema:
     modem_host = str(data.get(CONF_MODEM_HOST, "") or "")
     modem_port = int(data.get(CONF_MODEM_PORT, DEFAULT_MODEM_PORT) or DEFAULT_MODEM_PORT)
     modem_refresh = int(data.get(CONF_MODEM_REFRESH_INTERVAL, DEFAULT_MODEM_REFRESH_INTERVAL) or DEFAULT_MODEM_REFRESH_INTERVAL)
-    _LOGGER.warning("WWIVD OPTIONS DEBUG: Schema defaults - host=%s, port=%s, refresh=%s, instances=%s, blocking=%s, sysop=%s, laston=%s", 
+    _LOGGER.error("WWIVD OPTIONS: Schema defaults - host=%s, port=%s, refresh=%s, instances=%s, blocking=%s, sysop=%s, laston=%s", 
                    host, port, refresh, enable_instances, enable_blocking, enable_sysop, enable_laston)
     
     return vol.Schema(
@@ -277,22 +278,19 @@ def _safe_options_data(config_entry: config_entries.ConfigEntry) -> dict[str, An
         # Merge data and options (options override data for same keys)
         data = getattr(config_entry, "data", None)
         options = getattr(config_entry, "options", None)
+        _LOGGER.error("WWIVD OPTIONS: _safe_options_data called")
+        _LOGGER.error("WWIVD OPTIONS: data type=%s, value=%s", type(data), data)
+        _LOGGER.error("WWIVD OPTIONS: options type=%s, value=%s", type(options), options)
         raw = {}
         if isinstance(data, dict):
             raw.update(data)
+            _LOGGER.error("WWIVD OPTIONS: Updated raw from data, now: %s", raw)
         if isinstance(options, dict):
             raw.update(options)
+            _LOGGER.error("WWIVD OPTIONS: Updated raw from options, now: %s", raw)
         # Return all keys - don't filter, let schema handle defaults
-        _LOGGER.warning(
-            "WWIVD OPTIONS DEBUG: Loaded config entry data: %s (entry_id=%s)",
-            raw,
-            getattr(config_entry, "entry_id", "unknown"),
-        )
-        _LOGGER.warning(
-            "WWIVD OPTIONS DEBUG: data keys=%s, options keys=%s",
-            list(data.keys()) if isinstance(data, dict) else "NOT A DICT",
-            list(options.keys()) if isinstance(options, dict) else "NOT A DICT",
-        )
+        _LOGGER.error("WWIVD OPTIONS: Final raw dict: %s", raw)
+        _LOGGER.error("WWIVD OPTIONS: Raw keys: %s", list(raw.keys()))
         return dict(raw)  # Return copy of all data
     except Exception as err:  # pylint: disable=broad-except
         _LOGGER.exception("Failed to load options data: %s", err)
@@ -324,7 +322,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Show options form with optional error. data = current values for defaults."""
         if data is None:
             data = self._data
-        _LOGGER.warning("WWIVD OPTIONS DEBUG: Building options form with data: %s", data)
+        _LOGGER.error("WWIVD OPTIONS: Building options form with data: %s", data)
         errors = {"base": error} if error else {}
         return self.async_show_form(
             step_id="init",
@@ -338,19 +336,23 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Manage options."""
         if user_input is None:
             try:
-                _LOGGER.info("Opening options form for entry_id=%s", self.config_entry.entry_id)
+                _LOGGER.error("WWIVD OPTIONS: Opening options form for entry_id=%s", self.config_entry.entry_id)
+                # Direct access to see what's actually there
+                _LOGGER.error("WWIVD OPTIONS: self.config_entry.data = %s", getattr(self.config_entry, "data", "NO DATA ATTR"))
+                _LOGGER.error("WWIVD OPTIONS: self.config_entry.options = %s", getattr(self.config_entry, "options", "NO OPTIONS ATTR"))
                 # Get fresh entry from config store to ensure we have latest saved data
                 entry = self.hass.config_entries.async_get_entry(self.config_entry.entry_id)
                 if entry:
-                _LOGGER.warning("WWIVD OPTIONS DEBUG: Found entry in store, loading data...")
-                current_data = _safe_options_data(entry)
-                _LOGGER.warning("WWIVD OPTIONS DEBUG: Loaded data for options form: %s", current_data)
-                _LOGGER.warning("WWIVD OPTIONS DEBUG: Data keys: %s", list(current_data.keys()))
+                    _LOGGER.error("WWIVD OPTIONS: Found entry in store")
+                    _LOGGER.error("WWIVD OPTIONS: entry.data = %s", getattr(entry, "data", "NO DATA"))
+                    _LOGGER.error("WWIVD OPTIONS: entry.options = %s", getattr(entry, "options", "NO OPTIONS"))
+                    current_data = _safe_options_data(entry)
+                    _LOGGER.error("WWIVD OPTIONS: After _safe_options_data: %s", current_data)
                     return self._options_form(current_data)
                 else:
-                    _LOGGER.warning("Entry %s not found in config store, using self.config_entry", self.config_entry.entry_id)
+                    _LOGGER.error("WWIVD OPTIONS: Entry not found in store, using self.config_entry")
                     fallback_data = _safe_options_data(self.config_entry)
-                    _LOGGER.info("Fallback data: %s", fallback_data)
+                    _LOGGER.error("WWIVD OPTIONS: Fallback data: %s", fallback_data)
                     return self._options_form(fallback_data)
             except Exception as err:  # pylint: disable=broad-except
                 _LOGGER.exception("Options flow failed to show form: %s", err)
