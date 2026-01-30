@@ -317,9 +317,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle WWIVD options."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
+        """Initialize options flow. Do not access config_entry.data here."""
         self.config_entry = config_entry
-        self._data = _safe_options_data(config_entry)
 
     def _options_form(
         self,
@@ -327,7 +326,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         error: str | None = None,
     ) -> FlowResult:
         """Show options form with optional error."""
-        data = user_input if user_input is not None else self._data
+        if user_input is not None:
+            data = user_input
+        else:
+            data = _safe_options_data(self.config_entry)
         errors = {"base": error} if error else {}
         return self.async_show_form(
             step_id="init",
@@ -362,12 +364,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         ) < MIN_REFRESH_INTERVAL:
             return self._options_form(user_input, "invalid_refresh_interval")
 
-        self._data.update(user_input)
-        if not self._data.get(CONF_MODEM_ENABLED):
-            self._data.pop(CONF_MODEM_HOST, None)
-            self._data.pop(CONF_MODEM_PORT, None)
-            self._data.pop(CONF_MODEM_REFRESH_INTERVAL, None)
+        data_to_save = dict(user_input)
+        if not data_to_save.get(CONF_MODEM_ENABLED):
+            data_to_save.pop(CONF_MODEM_HOST, None)
+            data_to_save.pop(CONF_MODEM_PORT, None)
+            data_to_save.pop(CONF_MODEM_REFRESH_INTERVAL, None)
 
-        self.hass.config_entries.async_update_entry(self.config_entry, data=self._data)
+        self.hass.config_entries.async_update_entry(self.config_entry, data=data_to_save)
         await self.hass.config_entries.async_reload(self.config_entry.entry_id)
         return self.async_create_entry(title="", data={})
