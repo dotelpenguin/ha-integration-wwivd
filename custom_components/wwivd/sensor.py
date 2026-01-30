@@ -96,7 +96,7 @@ def _get_int_from_payload(payload: Any, *keys: str) -> int | None:
     v = _get_int(payload, *keys)
     if v is not None:
         return v
-    for nest in ("data", "instances", "result"):
+    for nest in ("status", "data", "instances", "result"):
         if nest in payload and isinstance(payload[nest], dict):
             v = _get_int(payload[nest], *keys)
             if v is not None:
