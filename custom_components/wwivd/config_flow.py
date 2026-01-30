@@ -286,14 +286,19 @@ def _safe_options_data(config_entry: config_entries.ConfigEntry) -> dict[str, An
         # Handle mappingproxy (immutable dict-like) by converting to dict
         if data is not None:
             try:
-                raw.update(dict(data))
-            except (TypeError, ValueError, AttributeError):
-                pass
+                data_dict = dict(data)
+                raw.update(data_dict)
+                _LOGGER.error("WWIVD OPTIONS: Converted data mappingproxy to dict: %s", data_dict)
+            except (TypeError, ValueError, AttributeError) as e:
+                _LOGGER.error("WWIVD OPTIONS: Failed to convert data: %s", e)
         if options is not None:
             try:
-                raw.update(dict(options))
-            except (TypeError, ValueError, AttributeError):
-                pass
+                options_dict = dict(options)
+                raw.update(options_dict)
+                _LOGGER.error("WWIVD OPTIONS: Converted options mappingproxy to dict: %s", options_dict)
+            except (TypeError, ValueError, AttributeError) as e:
+                _LOGGER.error("WWIVD OPTIONS: Failed to convert options: %s", e)
+        _LOGGER.error("WWIVD OPTIONS: _safe_options_data returning: %s", raw)
         return dict(raw)  # Return copy of all data
     except Exception as err:  # pylint: disable=broad-except
         _LOGGER.exception("Failed to load options data: %s", err)
