@@ -318,14 +318,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     def _options_form(
         self,
-        user_input: dict[str, Any] | None,
+        data: dict[str, Any],
         error: str | None = None,
     ) -> FlowResult:
-        """Show options form with optional error."""
-        if user_input is not None:
-            data = user_input
-        else:
-            data = _safe_options_data(self.config_entry)
+        """Show options form with optional error. data = current values for defaults."""
         errors = {"base": error} if error else {}
         return self.async_show_form(
             step_id="init",
@@ -339,7 +335,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Manage options."""
         if user_input is None:
             try:
-                return self._options_form(None)
+                # Use current entry from config store so form shows saved values
+                entry = self.hass.config_entries.async_get_entry(
+                    self.config_entry.entry_id
+                )
+                current = _safe_options_data(entry) if entry else {}
+                return self._options_form(current)
             except Exception as err:  # pylint: disable=broad-except
                 _LOGGER.exception("Options flow failed to show form: %s", err)
                 return self.async_abort(reason="options_load_failed")
