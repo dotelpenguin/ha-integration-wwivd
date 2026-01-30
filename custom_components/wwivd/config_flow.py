@@ -348,14 +348,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             data = self._data
         _LOGGER.info("Building options form with data: %s", data)
         errors = {"base": error} if error else {}
-        schema = _options_schema(data)
-        _LOGGER.debug("Schema defaults: host=%s, port=%s, refresh=%s", 
-                      schema.schema.get(CONF_HOST).default if CONF_HOST in schema.schema else "N/A",
-                      schema.schema.get(CONF_PORT).default if CONF_PORT in schema.schema else "N/A",
-                      schema.schema.get(CONF_REFRESH_INTERVAL).default if CONF_REFRESH_INTERVAL in schema.schema else "N/A")
         return self.async_show_form(
             step_id="init",
-            data_schema=schema,
+            data_schema=_options_schema(data),
             errors=errors,
         )
 
