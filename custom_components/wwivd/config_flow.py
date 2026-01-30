@@ -302,7 +302,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
         self.config_entry = config_entry
-        self._data = dict(config_entry.data)
+        # config_entry.data can be None in some HA versions or after migration
+        raw = config_entry.data
+        self._data = dict(raw) if isinstance(raw, dict) else {}
 
     def _options_form(
         self,
